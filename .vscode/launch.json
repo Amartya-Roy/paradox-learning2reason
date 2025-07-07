@@ -60,6 +60,25 @@
 
         }
 
+        {
+            "name": "Finetune Train",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/finetune_simplified.py",
+            "args": [
+                "--model_type", "bert",
+                "--model_name_or_path", "bert-base-uncased",
+                "--do_train",
+                "--output_dir", "./train_output",
+                "--overwrite_output_dir", // Add this to prevent errors on re-runs
+                // Add the following two lines to specify your data
+                "--train_file_path", "DATA/RP/prop_examples.balanced_by_depth.max_6.json_train",
+                "--val_file_path", "DATA/RP/prop_examples.balanced_by_depth.max_6.json_val"
+            ],
+            "console": "integratedTerminal",
+            "justMyCode": true
+        }
+
     ]
 
 }
