@@ -142,6 +142,7 @@ class LogicDataset(Dataset):
         return text_a, text_b, example["label"], example
 
     def collate_fn(self, examples):
+        tokenizer = self.tokenizer
         batch_encoding = self.tokenizer(
             [(example[0], example[1]) for example in examples],
             max_length=self.max_length,
