@@ -1,0 +1,65 @@
+{
+
+    "version": "0.2.0",
+
+    "configurations": [
+
+        {
+
+            "name": "LogicBERT Evaluate",
+
+            "type": "python",
+
+            "request": "launch",
+
+            "program": "${workspaceFolder}/logic_bert/evaluate.py",
+
+            "args": [
+
+                "--data_file", "logic_bert/test_examples.json",
+
+                "--vocab_file", "sample/vocab.txt",
+
+                "--device", "cpu"
+
+            ],
+
+            "console": "integratedTerminal",
+
+            "justMyCode": true
+
+        },
+
+        {
+
+            "name": "Finetune Evaluate",
+
+            "type": "python",
+
+            "request": "launch",
+
+            "program": "${workspaceFolder}/finetune_simplified.py",
+
+            "args": [
+
+                "--model_type", "bert",
+
+                "--model_name_or_path", "bert-base-uncased",
+
+                "--do_eval",
+
+                "--output_dir", "./debug_output",
+
+                "--val_file_path", "logic_bert/test_examples.json"
+
+            ],
+
+            "console": "integratedTerminal",
+
+            "justMyCode": true
+
+        }
+
+    ]
+
+}

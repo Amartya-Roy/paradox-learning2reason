@@ -33,7 +33,6 @@ from torch.utils.data import Dataset
 from transformers import (
     MODEL_FOR_SEQUENCE_CLASSIFICATION_MAPPING,
     WEIGHTS_NAME,
-    AdamW,
     AutoConfig,
     AutoModelForSequenceClassification,
     AutoTokenizer,
@@ -43,6 +42,7 @@ from transformers import (
     glue_output_modes as output_modes,
     glue_processors as processors,
 )
+from torch.optim import AdamW
 import pdb
 from transformers import BertForSequenceClassification
 from helpers import *
