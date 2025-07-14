@@ -43,9 +43,10 @@ class LogicDataset(Dataset):
                             cache_dir=args.cache_dir if args.cache_dir else None,
                         )
         
-        # Add special tokens for logical operations
-        special_tokens = ["[AND]", "[THEN]"]
-        self.tokenizer.add_tokens(special_tokens)
+        # Add special tokens for logical operations as lowercase to match lowercased input
+        special_tokens = ["[and]", "[then]", "[sent]"]
+        # register as additional_special_tokens so they are not split
+        self.tokenizer.add_special_tokens({"additional_special_tokens": special_tokens})
         
         self.max_length = args.max_length
         self.args = args
@@ -88,11 +89,9 @@ class LogicDataset(Dataset):
         new_example = {}
         new_example["rules"] = []
         for rule in example["rules"]:
-            one_rule = ""
-            one_rule +=  " [AND] ".join(rule[0])
-            one_rule += " [THEN] "
-            one_rule += rule[-1]
-            one_rule += ' .'
+            # join premises and conclusion with lowercase special tokens
+            one_rule = "[and]".join(rule[0])
+            one_rule += "[then]" + rule[-1]
             new_example["rules"].append(one_rule)
         
         new_example["facts"] = []
@@ -128,11 +127,11 @@ class LogicDataset(Dataset):
         "label": 1
         '''
         if self.args.ignore_fact:
-            text_a = " ".join(example["rules"]).lower()
+            text_a = "[sent]".join(example["rules"]).lower()
         elif self.args.ignore_both:
             text_a = " "
         else:
-            text_a = " ".join(example["rules"] + example["facts"]).lower()
+            text_a = "[sent]".join(example["rules"] + example["facts"]).lower()
     
         if self.args.ignore_query:
             text_b = " "

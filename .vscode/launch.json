@@ -72,8 +72,8 @@
                 "--output_dir", "./train_output",
                 "--overwrite_output_dir", // Add this to prevent errors on re-runs
                 // Add the following two lines to specify your data
-                "--train_file_path", "DATA/RP/prop_examples.balanced_by_depth.max_6.json_train",
-                "--val_file_path", "DATA/RP/prop_examples.balanced_by_depth.max_6.json_val"
+                "--train_file_path", "DATA/RP/prop_examples.balanced_by_backward.max_6.json_train",
+                "--val_file_path", "DATA/RP/prop_examples.balanced_by_backward.max_6.json_val"
             ],
             "console": "integratedTerminal",
             "justMyCode": true
