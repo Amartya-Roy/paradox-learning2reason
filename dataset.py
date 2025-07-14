@@ -42,6 +42,11 @@ class LogicDataset(Dataset):
                             do_lower_case=args.do_lower_case,
                             cache_dir=args.cache_dir if args.cache_dir else None,
                         )
+        
+        # Add special tokens for logical operations
+        special_tokens = ["[AND]", "[THEN]"]
+        self.tokenizer.add_tokens(special_tokens)
+        
         self.max_length = args.max_length
         self.args = args
         if args.skip_long_examples:
@@ -84,8 +89,8 @@ class LogicDataset(Dataset):
         new_example["rules"] = []
         for rule in example["rules"]:
             one_rule = ""
-            one_rule +=  " and ".join(rule[0])
-            one_rule += ", "
+            one_rule +=  " [AND] ".join(rule[0])
+            one_rule += " [THEN] "
             one_rule += rule[-1]
             one_rule += ' .'
             new_example["rules"].append(one_rule)
@@ -241,7 +246,7 @@ def limit_examples(examples_by_depth, max_depth_during_train, control_num = 2000
             del examples_by_depth[key]
 
     limit_length = len(examples_by_depth[max_depth_during_train])
-    print("Original lenght", limit_length)
+    print("Original length", limit_length)
     assert(limit_length >= control_num)
     limit_length = control_num
     print("Limiting to {}".format(limit_length))
