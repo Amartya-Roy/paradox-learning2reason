@@ -1,0 +1,60 @@
+Custom weight: OUTPUT/LP/BERT/checkpoint-9/model.safetensors
+Model: bert-base-uncased
+Eval file: DATA/RP/prop_examples.balanced_by_backward.max_6.json_val
+
+DATA/RP/prop_examples.balanced_by_backward.max_6.json_val
+
+{0: 'Acc: 0.625 ; Percentage 0.11428571428571428',
+ 1: 'Acc: 1.0 ; Percentage 0.1',
+ 2: 'Acc: 0.7 ; Percentage 0.14285714285714285',
+ 3: 'Acc: 0.9090909090909091 ; Percentage 0.15714285714285714',
+ 4: 'Acc: 0.7272727272727273 ; Percentage 0.15714285714285714',
+ 5: 'Acc: 0.7777777777777778 ; Percentage 0.12857142857142856',
+ 6: 'Acc: 0.7857142857142857 ; Percentage 0.2'}
+
+
+
+
+
+
+
+Custom weight: None
+Model: bert-base-uncased
+Eval file: DATA/RP/prop_examples.balanced_by_backward.max_6.json_val
+
+DATA/RP/prop_examples.balanced_by_backward.max_6.json_val
+
+{0: 'Acc: 0.625 ; Percentage 0.11428571428571428',
+ 1: 'Acc: 0.8571428571428571 ; Percentage 0.1',
+ 2: 'Acc: 0.7 ; Percentage 0.14285714285714285',
+ 3: 'Acc: 0.7272727272727273 ; Percentage 0.15714285714285714',
+ 4: 'Acc: 0.9090909090909091 ; Percentage 0.15714285714285714',
+ 5: 'Acc: 0.6666666666666666 ; Percentage 0.12857142857142856',
+ 6: 'Acc: 0.6428571428571429 ; Percentage 0.2'}
+
+
+
+
+
+
+
+Custom weight: OUTPUT/RP/BERT/NEW_TOKENS/checkpoint-9/model.safetensors
+Model: bert-base-uncased
+Eval file: DATA/RP/prop_examples.balanced_by_backward.max_6.json_val
+
+DATA/RP/prop_examples.balanced_by_backward.max_6.json_val
+
+{0: 'Acc: 0.625 ; Percentage 0.11428571428571428',
+ 1: 'Acc: 0.8571428571428571 ; Percentage 0.1',
+ 2: 'Acc: 0.7 ; Percentage 0.14285714285714285',
+ 3: 'Acc: 0.7272727272727273 ; Percentage 0.15714285714285714',
+ 4: 'Acc: 0.9090909090909091 ; Percentage 0.15714285714285714',
+ 5: 'Acc: 0.6666666666666666 ; Percentage 0.12857142857142856',
+ 6: 'Acc: 0.6428571428571429 ; Percentage 0.2'}
+
+
+
+
+
+
+

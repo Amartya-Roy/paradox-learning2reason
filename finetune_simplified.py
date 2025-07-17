@@ -22,6 +22,7 @@ import os
 import random
 import pprint
 from typing import DefaultDict
+from collections import defaultdict
 import numpy
 import numpy as np
 import torch
@@ -94,6 +95,9 @@ def train(args, train_dataset, model, tokenizer, eval_dataset=None):
     scheduler = get_linear_schedule_with_warmup(
         optimizer, num_warmup_steps=num_warmup_steps, num_training_steps=t_total
     )
+    
+    # Create scaler for mixed precision training
+    scaler = torch.cuda.amp.GradScaler() if args.use_autocast else None
 
     # Check if saved optimizer or scheduler states exist
     if os.path.isfile(os.path.join(args.model_name_or_path, "optimizer.pt")) and os.path.isfile(
@@ -182,6 +186,9 @@ def train(args, train_dataset, model, tokenizer, eval_dataset=None):
             if args.fp16:
                 with amp.scale_loss(loss, optimizer) as scaled_loss:
                     scaled_loss.backward()
+            elif args.use_autocast:
+                # Use autocast for mixed precision without apex
+                scaler.scale(loss).backward()
             else:
                 loss.backward()
             logits = outputs[1]
@@ -200,10 +207,17 @@ def train(args, train_dataset, model, tokenizer, eval_dataset=None):
                 len(epoch_iterator) <= args.gradient_accumulation_steps
                 and (step + 1) == len(epoch_iterator)
             ):  
-                if not args.fp16 and not args.use_autocast:
+                if args.use_autocast and scaler is not None:
+                    scaler.unscale_(optimizer)
                     torch.nn.utils.clip_grad_norm_(model.parameters(), args.max_grad_norm)
-
-                optimizer.step()
+                    scaler.step(optimizer)
+                    scaler.update()
+                elif not args.fp16:
+                    torch.nn.utils.clip_grad_norm_(model.parameters(), args.max_grad_norm)
+                    optimizer.step()
+                else:
+                    optimizer.step()
+                    
                 scheduler.step()  # Update learning rate schedule
                 model.zero_grad()
                 global_step += 1
@@ -257,6 +271,7 @@ def train(args, train_dataset, model, tokenizer, eval_dataset=None):
                 model.module if hasattr(model, "module") else model
             )  # Take care of distributed/parallel training
             model_to_save.save_pretrained(output_dir)
+            tokenizer.save_pretrained(output_dir)
 
             torch.save(args, os.path.join(output_dir, "training_args.bin"))
             # save optimizer
@@ -547,6 +562,7 @@ def main():
     parser.add_argument("--skip_long_examples", action="store_true")
     parser.add_argument("--limit_example_num", default=-1, type=int)
     parser.add_argument("--resume_dir", default=None)
+    parser.add_argument("--add_special_tokens", action="store_true", help="Add special tokens [and], [then], [sent] for logic reasoning")
 
 
     args = parser.parse_args()
@@ -567,6 +583,9 @@ def main():
     if args.local_rank == -1 or args.no_cuda:
         device = torch.device("cuda" if torch.cuda.is_available() and not args.no_cuda else "cpu")
         args.n_gpu = 0 if args.no_cuda else torch.cuda.device_count()
+        # For Colab, limit to single GPU if available
+        if args.n_gpu > 1 and not args.local_rank != -1:
+            args.n_gpu = 1
     else:  # Initializes the distributed backend which will take care of sychronizing nodes/GPUs
         torch.cuda.set_device(args.local_rank)
         device = torch.device("cuda", args.local_rank)
@@ -613,6 +632,15 @@ def main():
         do_lower_case=args.do_lower_case,
         cache_dir=args.cache_dir if args.cache_dir else None,
     )
+    
+    # Add new tokens if needed
+    added_tokens = 0
+    if args.add_special_tokens:
+        new_tokens = ["[and]", "[then]", "[sent]"]
+        added_tokens = tokenizer.add_tokens(new_tokens)
+        if added_tokens > 0:
+            print(f"Added {added_tokens} new tokens to tokenizer")
+    
     if "bert" in args.model_name_or_path: 
         model = BertForSequenceClassification.from_pretrained(
             args.model_name_or_path,
@@ -629,16 +657,54 @@ def main():
             cache_dir=args.cache_dir if args.cache_dir else None,
         )
 
+    # Resize token embeddings if new tokens were added
+    if added_tokens > 0:
+        model.resize_token_embeddings(len(tokenizer))
+        print(f"Resized model embeddings to {len(tokenizer)} tokens")
+
     if args.change_positional_embedding_before_loading:
         expand_position_embeddings(model, args.max_length, args.model_name_or_path)
 
     if args.custom_weight is not None:
+        print(f"\n\nLoading custom weights from {args.custom_weight}")
+        
+        # Handle both .bin and .safetensors formats
+        if args.custom_weight.endswith('.bin'):
+            custom_state_dict = torch.load(args.custom_weight, map_location='cpu')
+        elif args.custom_weight.endswith('.safetensors') or args.custom_weight.endswith('model.safetensors'):
+            from safetensors.torch import load_file
+            custom_state_dict = load_file(args.custom_weight)
+        else:
+            # Try to auto-detect format
+            if os.path.exists(args.custom_weight):
+                custom_state_dict = torch.load(args.custom_weight, map_location='cpu')
+            else:
+                # Try safetensors format
+                safetensors_path = args.custom_weight.replace('.bin', '.safetensors')
+                if os.path.exists(safetensors_path):
+                    from safetensors.torch import load_file
+                    custom_state_dict = load_file(safetensors_path)
+                    print(f"Using safetensors format: {safetensors_path}")
+                else:
+                    raise FileNotFoundError(f"Cannot find model file: {args.custom_weight}")
+        
+        # Handle potential module prefix from DataParallel
+        new_state_dict = {}
+        for key, value in custom_state_dict.items():
+            new_key = key.replace("module.", "") if key.startswith("module.") else key
+            new_state_dict[new_key] = value
+        
+        # Load the state dict with strict=False to handle new tokens
+        missing_keys, unexpected_keys = model.load_state_dict(new_state_dict, strict=False)
+        if missing_keys:
+            print(f"Missing keys: {missing_keys}")
+        if unexpected_keys:
+            print(f"Unexpected keys: {unexpected_keys}")
+        print(f"Successfully loaded custom weights from {args.custom_weight}")
+    elif not args.do_train:
+        # Initialize weights if not training and no custom weights provided
+        print("\n\nInitializing random weights for evaluation")
         model.apply(model._init_weights)
-        custom_state_dict = torch.load(args.custom_weight, map_location='cpu')
-        for key in list(custom_state_dict.keys()):
-            custom_state_dict[key.replace("module.", "")] = custom_state_dict[key]
-        load_state_dict_flexible(model, custom_state_dict)
-        print("\n\nLoaded {}".format(args.custom_weight))
 
     if args.load_bert_weight is not None:
         original_bert_weight = torch.load(args.load_bert_weight, map_location="cpu")
@@ -703,7 +769,7 @@ def main():
         tokenizer = AutoTokenizer.from_pretrained(args.output_dir)
 
     # Evaluation
-    print("Enterring evaluation")
+    print("Entering evaluation")
     
     if args.do_eval and args.local_rank in [-1, 0]:
         model.eval()
@@ -754,11 +820,16 @@ def main():
         
         pprint.pprint(all_results)
 
-        with open("eval_result.txt", "a+") as f:
-            f.write(args.custom_weight)
-            f.write("\n\n")
+        eval_results_path = "eval_result.txt"
+        with open(eval_results_path, "a+") as f:
+            f.write(f"Custom weight: {args.custom_weight if args.custom_weight else 'None'}\n")
+            f.write(f"Model: {args.model_name_or_path}\n")
+            f.write(f"Eval file: {args.val_file_path}\n")
+            f.write("\n")
             f.write(results_string_final)
             f.write("\n\n\n\n\n")
+        
+        print(f"Results saved to {eval_results_path}")
 
 
 if __name__ == "__main__":
